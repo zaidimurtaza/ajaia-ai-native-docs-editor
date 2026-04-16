@@ -21,8 +21,32 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Ajaia Docs API", version="0.1.0", lifespan=lifespan)
 
-_default_origins = "http://localhost:5173,http://127.0.0.1:5173"
-_cors = [o.strip() for o in os.getenv("CORS_ORIGINS", _default_origins).split(",") if o.strip()]
+# Always allow local dev + production UI (Render env CORS_ORIGINS is merged, not a full replace).
+_BUILTIN_CORS_ORIGINS = (
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://ajaia-ai-native-docs-editor.vercel.app",
+)
+
+
+def _cors_origins() -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for o in _BUILTIN_CORS_ORIGINS:
+        if o not in seen:
+            seen.add(o)
+            out.append(o)
+    extra = os.getenv("CORS_ORIGINS", "").strip()
+    if extra:
+        for o in extra.split(","):
+            o = o.strip()
+            if o and o not in seen:
+                seen.add(o)
+                out.append(o)
+    return out
+
+
+_cors = _cors_origins()
 
 app.add_middleware(
     CORSMiddleware,
