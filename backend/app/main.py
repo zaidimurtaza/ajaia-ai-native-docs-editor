@@ -1,19 +1,42 @@
 from __future__ import annotations
 
+import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.keepalive import start_keepalive, stop_keepalive
 from app.routers import auth, documents
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
+_log = logging.getLogger("ajaia.api")
+
+
+class _LogUnhandledErrorsMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        try:
+            return await call_next(request)
+        except Exception:
+            _log.exception("%s %s", request.method, request.url.path)
+            raise
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     sched = start_keepalive()
     try:
+        from app import db
+
+        try:
+            db.query("SELECT 1 AS ok", one=True)
+            _log.info("database: ok (SELECT 1)")
+        except Exception:
+            _log.exception(
+                "database: startup check failed — set POSTGRES_* on Render and PGSSLMODE=require for Supabase"
+            )
         yield
     finally:
         stop_keepalive(sched)
@@ -48,6 +71,7 @@ def _cors_origins() -> list[str]:
 
 _cors = _cors_origins()
 
+app.add_middleware(_LogUnhandledErrorsMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors,

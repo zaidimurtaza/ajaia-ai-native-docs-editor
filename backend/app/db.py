@@ -26,21 +26,27 @@ def as_uuid(value) -> uuid.UUID:
     return value if isinstance(value, uuid.UUID) else uuid.UUID(str(value))
 
 
+def _connect_kwargs():
+    # public last so extension functions (e.g. pgcrypto) still resolve; app tables are always qualified.
+    search_path = f"-c search_path={SCHEMA},public"
+    kw = dict(
+        host=os.getenv("POSTGRES_HOST"),
+        port=os.getenv("POSTGRES_PORT") or "5432",
+        database=os.getenv("POSTGRES_DB"),
+        user=os.getenv("POSTGRES_USER"),
+        password=os.getenv("POSTGRES_PASSWORD"),
+        options=search_path,
+    )
+    sslmode = os.getenv("PGSSLMODE", "").strip()
+    if sslmode:
+        kw["sslmode"] = sslmode
+    return kw
+
+
 def init_db():
     global _pool
     if _pool is None:
-        # public last so extension functions (e.g. pgcrypto) still resolve; app tables are always qualified.
-        search_path = f"-c search_path={SCHEMA},public"
-        _pool = SimpleConnectionPool(
-            2,
-            10,
-            host=os.getenv("POSTGRES_HOST"),
-            port=os.getenv("POSTGRES_PORT"),
-            database=os.getenv("POSTGRES_DB"),
-            user=os.getenv("POSTGRES_USER"),
-            password=os.getenv("POSTGRES_PASSWORD"),
-            options=search_path,
-        )
+        _pool = SimpleConnectionPool(2, 10, **_connect_kwargs())
 
 
 @contextmanager
