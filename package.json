@@ -1,0 +1,8 @@
+{
+  "name": "ajaia-ai-native-docs-editor",
+  "private": true,
+  "description": "Monorepo root for Vercel: UI lives in ui/",
+  "scripts": {
+    "build": "npm ci --prefix ui && npm run build --prefix ui"
+  }
+}
