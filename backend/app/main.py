@@ -4,6 +4,8 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -13,6 +15,8 @@ from app.routers import auth, documents
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
 _log = logging.getLogger("ajaia.api")
+
+load_dotenv()
 
 
 class _LogUnhandledErrorsMiddleware(BaseHTTPMiddleware):
@@ -31,6 +35,14 @@ async def lifespan(app: FastAPI):
         try:
             from app import db
 
+            _log.info(
+                "database: env host=%s port=%s user=%s db=%s password_set=%s",
+                os.getenv("POSTGRES_HOST"),
+                os.getenv("POSTGRES_PORT") or "5432",
+                os.getenv("POSTGRES_USER"),
+                os.getenv("POSTGRES_DB"),
+                bool(os.getenv("POSTGRES_PASSWORD")),
+            )
             db.init_db()
             db.query("SELECT 1 AS ok", one=True)
             _log.info("database: ok (SELECT 1)")
