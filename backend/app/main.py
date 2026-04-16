@@ -28,9 +28,10 @@ class _LogUnhandledErrorsMiddleware(BaseHTTPMiddleware):
 async def lifespan(app: FastAPI):
     sched = start_keepalive()
     try:
-        from app import db
-
         try:
+            from app import db
+
+            db.init_db()
             db.query("SELECT 1 AS ok", one=True)
             _log.info("database: ok (SELECT 1)")
         except Exception:
